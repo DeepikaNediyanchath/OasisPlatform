@@ -5,6 +5,13 @@ from rest_framework.response import Response
 from .peril import PERIL_GROUPS, PERILS
 from ..schemas.custom_swagger import SERVER_INFO
 
+# package versions
+from celery import __version__ as celery_version
+from ods_tools import __version__ as ods_tools_version
+from django import __version__ as  django_version
+from oasis_data_manager import __version__ as  oasis_data_manager_version
+from rest_framework import __version__ as  rest_framework_version
+
 
 class PerilcodesView(views.APIView):
     """
@@ -77,5 +84,13 @@ class ServerInfoView(views.APIView):
 
         return Response({
             'version': server_version,
+            'packages': {
+                'celery': celery_version,
+                'django': django_version,
+                'django-rest-framework': rest_framework_version,
+                'ods-tools': ods_tools_version,
+                'oasis-data-manager': oasis_data_manager_version
+            },
+            'published':{},
             'config': server_config
         })
