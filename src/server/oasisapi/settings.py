@@ -19,6 +19,9 @@ from django.core.exceptions import ImproperlyConfigured
 from ...conf import iniconf  # noqa
 from ...conf.celeryconf import *  # noqa
 from ...common.shared import set_aws_log_level, set_azure_log_level
+from azure.identity import DefaultAzureCredential, ClientSecretCredential
+import psycopg2
+from django.core.exceptions import ImproperlyConfigured
 
 
 IN_TEST = 'test' in sys.argv
@@ -131,17 +134,46 @@ TEMPLATES = [
 ASGI_APPLICATION = "src.server.oasisapi.asgi.application"
 WSGI_APPLICATION = 'src.server.oasisapi.wsgi.application'
 
+# For Service Principal Authentication
+TENANT_ID = os.environ.get('AZURE_TENANT_ID')
+CLIENT_ID = os.environ.get('AZURE_CLIENT_ID')
+CLIENT_SECRET = os.environ.get('AZURE_CLIENT_SECRET')
+
+cred = ClientSecretCredential(tenant_id=TENANT_ID, client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+try:
+    access_token = cred.get_token('https://ossrdbms-aad.database.windows.net/.default')
+except Exception as e:
+    raise ImproperlyConfigured(f"Failed to retrieve access token: {e}")
+
+
 
 # Database
 
-DB_ENGINE = iniconf.settings.get('server', 'db_engine', fallback='django.db.backends.sqlite3')
+# DB_ENGINE = iniconf.settings.get('server', 'db_engine', fallback='django.db.backends.sqlite3')
 
-if DB_ENGINE == 'django.db.backends.sqlite3':
+# if DB_ENGINE == 'django.db.backends.sqlite3':
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': DB_ENGINE,
+#             'NAME': os.path.join(BASE_DIR, iniconf.settings.get('server', 'db_name', fallback='db.sqlite3')),
+#         }
+#     }
+
+DB_ENGINE = iniconf.settings.get('server', 'db_engine', fallback='django.db.backends.postgresql_psycopg2')
+if DB_ENGINE == 'django.db.backends.postgresql_psycopg2':
     DATABASES = {
-        'default': {
-            'ENGINE': DB_ENGINE,
-            'NAME': os.path.join(BASE_DIR, iniconf.settings.get('server', 'db_name', fallback='db.sqlite3')),
-        }
+            'default': {
+                'ENGINE': DB_ENGINE,
+                'NAME': iniconf.settings.get('server', 'db_name'),
+                # 'USER': USER,
+                # 'PASSWORD': '',  # as password not needed when using access token
+                'HOST': iniconf.settings.get('server', 'db_host'),
+                'PORT': iniconf.settings.get('server', 'db_port'),
+                'OPTIONS': {
+                    # 'extra_params': 'Authentication=ActiveDirectoryServicePrincipal',
+                    'options': f'-c azure.access_token={access_token}'
+                },
+            }
     }
 else:
     DATABASES = {
