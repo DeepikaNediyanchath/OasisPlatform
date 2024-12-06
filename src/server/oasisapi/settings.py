@@ -21,7 +21,6 @@ from ...conf.celeryconf import *  # noqa
 from ...common.shared import set_aws_log_level, set_azure_log_level
 from azure.identity import DefaultAzureCredential, ClientSecretCredential
 import psycopg2
-from django.core.exceptions import ImproperlyConfigured
 
 
 IN_TEST = 'test' in sys.argv
